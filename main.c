@@ -81,19 +81,20 @@ int main() {
 		os[oslen-1] = z;
 	}
 	char* NAME;
+	uint8_t is_name = 0;
 	uint8_t is_pretty = 0;
 	for (size_t i = 0; i < oslen; ++i) {
 		char* eq = strrchr(os[i], '=');
 		if (eq) {
-			if (!is_pretty && strncmp(os[i], "NAME", eq-os[i]) == 0) { NAME = eq+1; continue; }
-			if (strncmp(os[i], "PRETTY_NAME", eq-os[i]) == 0) { NAME = eq+1; is_pretty = 1; continue; }
+			if (!is_pretty && strncmp(os[i], "NAME",        eq-os[i]) == 0) { NAME = eq+1; is_name = 1;             continue; }
+			if               (strncmp(os[i], "PRETTY_NAME", eq-os[i]) == 0) { NAME = eq+1; is_pretty = is_name = 1; continue; }
 		}
 		free(os[i]);
 	}
 	struct statvfs vfs;
 	char* root = "/";
 	if (statvfs(root, &vfs) < 0) { fprintf(stderr, "statvfs: %s: %s\n", root, strerror(errno)); return errno; }
-	if (NAME != NULL) {
+	if (is_name) {
 		size_t len = strlen(NAME);
 		if ((NAME[len-1] == '"' && NAME[0] == '"') || (NAME[len-1] == '\'' && NAME[0] == '\'')) {
 			NAME[len-1] = '\0';
