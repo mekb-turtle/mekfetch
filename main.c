@@ -185,8 +185,7 @@ int main(int argc, char *argv[]) {
 	bool is_battery = 0;
 	char *bat_icon = NULL;
 	char *bat_text = NULL;
-	if (!bat) { ERROR("%s: %s\n", BATTERY); }
-	else {
+	if (bat) {
 		size_t bat_count = 0;
 		struct dirent *dir = NULL;
 		while ((dir = readdir(bat)) != NULL) {
@@ -259,6 +258,7 @@ int main(int argc, char *argv[]) {
 	printf("%s%s   user%s%s%s\n",       key_text, nerd_ternary(nerd_flag, "  "), separator_text, pw->pw_name, reset); // from getpwuid
 	printf("%s%s   host%s%s%s\n",       key_text, nerd_ternary(nerd_flag, "  "), separator_text, un.nodename, reset); // uname
 	printf("%s%s  shell%s%s%s\n",       key_text, nerd_ternary(nerd_flag, "  "), separator_text, sh_, reset); // SHELL env or from getpwuid
+	if (lang)
 	printf("%s%s locale%s%s%s\n",       key_text, nerd_ternary(nerd_flag, "  "), separator_text, lang, reset); // LANG env
 	printf("%s%s   date%s%s%s\n",       key_text, nerd_ternary(nerd_flag, "  "), separator_text, date_str, reset); // time/date format
 	printf("%s%s   time%s%s%s\n",       key_text, nerd_ternary(nerd_flag, "  "), separator_text, time_str, reset);
@@ -267,6 +267,7 @@ int main(int argc, char *argv[]) {
 	printf("%s%s uptime%s%s%s\n",       key_text, nerd_ternary(nerd_flag, "﯁  "), separator_text, display_time(si.uptime), reset); // sysinfo
 	printf("%s%s   proc%s%i%s\n",       key_text, nerd_ternary(nerd_flag, "缾 "), separator_text, si.procs, reset);
 	printf("%s%s    ram%s%s%s%s%s\n",   key_text, nerd_ternary(nerd_flag, "  "), separator_text, display_bytes( si.totalram  - si.freeram),                  slash_text, display_bytes(si.totalram), reset);
+	if (si.totalswap > 0)
 	printf("%s%s   swap%s%s%s%s%s\n",   key_text, nerd_ternary(nerd_flag, "易 "), separator_text, display_bytes( si.totalswap - si.freeswap),                 slash_text, display_bytes(si.totalswap), reset);
 	printf("%s%s  inode%s%s%s%s%s\n",   key_text, nerd_ternary(nerd_flag, "﫭 "), separator_text, display_bytes( vfs.f_files  - vfs.f_ffree),                 slash_text, display_bytes(vfs.f_files), reset); // vfs
 	printf("%s%s  block%s%s%s%s%s\n",   key_text, nerd_ternary(nerd_flag, "﫭 "), separator_text, display_bytes((vfs.f_blocks - vfs.f_bfree) * vfs.f_frsize), slash_text, display_bytes(vfs.f_blocks * vfs.f_frsize), reset);
