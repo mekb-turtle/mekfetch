@@ -250,6 +250,7 @@ int main(int argc, char *argv[]) {
 			free(bat_text);
 			bat_text = tmp_2_text;
 		}
+		closedir(bat);
 	}
 	// https://www.nerdfonts.com/
 	if (is_name)
