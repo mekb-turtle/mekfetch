@@ -12,7 +12,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <dirent.h>
-#define NERD_FONT // comment out to compile without nerd font support, useful if you have a minimal system without fonts or a GUI
+#define NERD_FONT_SUPPORT // comment out to compile without nerd font support, useful if you have a minimal system without fonts or a GUI
+#define COLOR_SUPPORT // same as above but for colors
 #define ERROR(format, str, ...) fprintf(stderr, format, str, strerror(errno), ##__VA_ARGS__)
 #define OS "/etc/os-release"
 #define BATTERY "/sys/class/power_supply/"
@@ -63,28 +64,37 @@ char *display_time(long seconds) {
 int usage(char *argv0) {
 	fprintf(stderr, "\
 Usage: %s\n"
-#ifdef NERD_FONT
-"	-n --nerd     : use nerd font icons\n"
+#ifdef COLOR_SUPPORT
+"	-c --color     : enables colors\n\
+	-b --colorbars : shows color bars, best used with -c\n"
 #endif
-"	-c --nocolor  : disable colors\n\
-	-h --12hour   : use 12 hour time instead of 24 hour time\n\
-	-d --noday    : don't show day of the week in time (e.g Thu)\n\
-", argv0);
+#ifdef NERD_FONT_SUPPORT
+"	-n --nerd      : use nerd font icons\n"
+#endif
+"	-h --12hour    : use 12 hour time instead of 24 hour time\n\
+	-d --noday     : don't show day of the week in time (e.g Thu)\n",
+	argv0);
 	return 2;
 }
-#ifdef NERD_FONT
-char* nerd_ternary(bool t, char* a) {
-	if (t) return a; else return ""; // so compiling without nerd fonts still works
-}
+#ifdef COLOR_SUPPORT
+#define color(a, b) color_flag ? a : b
 #else
-#define nerd_ternary(t, a) ""
+#define color(a, b) b
+#endif
+#ifdef NERD_FONT_SUPPORT
+#define nerd(a) nerd_flag ? a : ""
+#else
+#define nerd(a) ""
 #endif
 int main(int argc, char *argv[]) {
 #define INVALID { return usage(argv[0]); }
-#ifdef NERD_FONT
+#ifdef COLOR_SUPPORT
+	bool color_flag = 0;
+	bool colorbars_flag = 0;
+#endif
+#ifdef NERD_FONT_SUPPORT
 	bool nerd_flag = 0;
 #endif
-	bool nocolor_flag = 0;
 	bool h12_flag = 0;
 	bool noday_flag = 0;
 	bool flag_done = 0;
@@ -92,16 +102,22 @@ int main(int argc, char *argv[]) {
 		if (argv[i][0] == '-' && argv[i][1] != '\0' && !flag_done) {
 			if (argv[i][1] == '-' && argv[i][2] == '\0') flag_done = 1; // -- denotes end of flags (and -o)
 			else {
-#ifdef NERD_FONT
+#ifdef COLOR_SUPPORT
+				if (strcmp(argv[i], "-c") == 0 || strcmp(argv[i], "--color") == 0) {
+					if (color_flag) INVALID
+					color_flag = 1;
+				} else
+				if (strcmp(argv[i], "-b") == 0 || strcmp(argv[i], "--colorbars") == 0) {
+					if (colorbars_flag) INVALID
+					colorbars_flag = 1;
+				} else
+#endif
+#ifdef NERD_FONT_SUPPORT
 				if (strcmp(argv[i], "-n") == 0 || strcmp(argv[i], "--nerd") == 0) {
 					if (nerd_flag) INVALID
 					nerd_flag = 1;
 				} else
 #endif
-				if (strcmp(argv[i], "-c") == 0 || strcmp(argv[i], "--nocolor") == 0) {
-					if (nocolor_flag) INVALID
-					nocolor_flag = 1;
-				} else
 				if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--12hour") == 0) {
 					if (h12_flag) INVALID
 					h12_flag = 1;
@@ -109,7 +125,8 @@ int main(int argc, char *argv[]) {
 				if (strcmp(argv[i], "-d") == 0 || strcmp(argv[i], "--noday") == 0) {
 					if (noday_flag) INVALID
 					noday_flag = 1;
-				} else INVALID
+				} else
+				INVALID
 			}
 		} else INVALID
 	}
@@ -125,7 +142,6 @@ int main(int argc, char *argv[]) {
 	if (!sh) sh = pw->pw_shell;
 	char *sh_ = strrchr(sh, '/');
 	if (!sh_) sh_ = sh; else ++sh_;
-	uint8_t is_name = 0;
 	char *name;
 	FILE *fp = fopen(OS, "r");
 	if (!fp) { ERROR("%s: %s\n", OS); }
@@ -155,18 +171,14 @@ int main(int argc, char *argv[]) {
 		for (size_t i = 0; i < oslen; ++i) {
 			char *eq = strrchr(os[i], '=');
 			if (eq) {
-				if (!is_pretty && strncmp(os[i], "NAME",        eq-os[i]) == 0) { name = eq+1; is_name = 1;             continue; }
-				if               (strncmp(os[i], "PRETTY_NAME", eq-os[i]) == 0) { name = eq+1; is_name = is_pretty = 1; continue; }
+				if (!is_pretty && strncmp(os[i], "NAME",        eq-os[i]) == 0) { name = eq+1;                continue; }
+				if               (strncmp(os[i], "PRETTY_NAME", eq-os[i]) == 0) { name = eq+1; is_pretty = 1; continue; }
 			}
 			free(os[i]);
 		}
 	}
 	struct statvfs vfs;
 	if (statvfs(ROOT, &vfs) < 0) { ERROR("statvfs: %s: %s\n", ROOT); return errno; }
-	char *key_text       = nocolor_flag ? ""    : "\x1b[38;5;14m";
-	char *separator_text = nocolor_flag ? " ~ " : "\x1b[38;5;7m ~ \x1b[0m";
-	char *slash_text     = nocolor_flag ? " / " : "\x1b[38;5;7m / \x1b[0m";
-	char *reset          = nocolor_flag ? ""    : "\x1b[0m";
 	struct timeval timev;
 	gettimeofday(&timev, NULL);
 	struct tm *time = localtime(&(timev.tv_sec));
@@ -174,21 +186,23 @@ int main(int argc, char *argv[]) {
 	char time_str[64];
 	strftime(date_str, sizeof(date_str), noday_flag ? "%d.%m.%Y"    : "%a %d.%m.%Y", time); // optional show day of the week
 	strftime(time_str, sizeof(time_str), h12_flag   ? "%I.%M.%S %p" : "%H.%M.%S",    time); // 24 hour or 12 hour
-	if (is_name) {
+	if (name) {
 		size_t len = strlen(name);
 		if ((name[len-1] == '"' && name[0] == '"') || (name[len-1] == '\'' && name[0] == '\'')) { // if surrounded with quotes or double quotes, remove them
 			name[len-1] = '\0';
 			++name;
 		}
 	}
-	DIR *bat = opendir(BATTERY); // lists all batteries
+	DIR *battery_dir = opendir(BATTERY); // lists all batteries
 	bool is_battery = 0;
-	char *bat_icon = NULL;
+#ifdef NERD_FONT_SUPPORT
+	char *bat = NULL;
+#endif
 	char *bat_text = NULL;
-	if (bat) {
+	if (battery_dir) {
 		size_t bat_count = 0;
 		struct dirent *dir = NULL;
-		while ((dir = readdir(bat)) != NULL) {
+		while ((dir = readdir(battery_dir)) != NULL) {
 			if (dir->d_name[0] == '.' && (dir->d_name[1] == '\0' || (dir->d_name[1] == '.' && dir->d_name[2] == '\0'))) continue; // ignore . and ..
 			char *bat_status_name   = malloc(32 + strlen(dir->d_name));
 			char *bat_capacity_name = malloc(32 + strlen(dir->d_name));
@@ -211,38 +225,44 @@ int main(int argc, char *argv[]) {
 			char *tmp_text = malloc(32);
 			if (bat_status == 'C') { // charging
 				is_battery = 1;
-				if (!bat_icon) {
-					if (bat_capacity_l < 30)  bat_icon = "\uf585  "; else
-					if (bat_capacity_l < 40)  bat_icon = "\uf586  "; else
-					if (bat_capacity_l < 50)  bat_icon = "\uf587  "; else
-					if (bat_capacity_l < 70)  bat_icon = "\uf588  "; else
-					if (bat_capacity_l < 90)  bat_icon = "\uf589  "; else
-					if (bat_capacity_l < 100) bat_icon = "\uf58a  "; else
-					bat_icon = "\uf584  ";
+#ifdef NERD_FONT_SUPPORT
+				if (!bat) {
+					if (bat_capacity_l < 30)  bat = "\uf585  "; else
+					if (bat_capacity_l < 40)  bat = "\uf586  "; else
+					if (bat_capacity_l < 50)  bat = "\uf587  "; else
+					if (bat_capacity_l < 70)  bat = "\uf588  "; else
+					if (bat_capacity_l < 90)  bat = "\uf589  "; else
+					if (bat_capacity_l < 100) bat = "\uf58a  "; else
+					bat = "\uf584  ";
 				}
+#endif
 				sprintf(tmp_text, "%s Charging %li%%", dir->d_name, bat_capacity_l);
 			} else
 			if (bat_status == 'D') { // discharging
 				is_battery = 1;
-				if (!bat_icon) {
-					if (bat_capacity_l < 10)  bat_icon = "\uf58d  "; else
-					if (bat_capacity_l < 20)  bat_icon = "\uf579  "; else
-					if (bat_capacity_l < 30)  bat_icon = "\uf57a  "; else
-					if (bat_capacity_l < 40)  bat_icon = "\uf57b  "; else
-					if (bat_capacity_l < 50)  bat_icon = "\uf57c  "; else
-					if (bat_capacity_l < 60)  bat_icon = "\uf57d  "; else
-					if (bat_capacity_l < 70)  bat_icon = "\uf57e  "; else
-					if (bat_capacity_l < 80)  bat_icon = "\uf57f  "; else
-					if (bat_capacity_l < 90)  bat_icon = "\uf580  "; else
-					if (bat_capacity_l < 100) bat_icon = "\uf581  "; else
-					bat_icon = "\uf578  ";
+#ifdef NERD_FONT_SUPPORT
+				if (!bat) {
+					if (bat_capacity_l < 10)  bat = "\uf58d  "; else
+					if (bat_capacity_l < 20)  bat = "\uf579  "; else
+					if (bat_capacity_l < 30)  bat = "\uf57a  "; else
+					if (bat_capacity_l < 40)  bat = "\uf57b  "; else
+					if (bat_capacity_l < 50)  bat = "\uf57c  "; else
+					if (bat_capacity_l < 60)  bat = "\uf57d  "; else
+					if (bat_capacity_l < 70)  bat = "\uf57e  "; else
+					if (bat_capacity_l < 80)  bat = "\uf57f  "; else
+					if (bat_capacity_l < 90)  bat = "\uf580  "; else
+					if (bat_capacity_l < 100) bat = "\uf581  "; else
+					bat = "\uf578  ";
 				}
+#endif
 				sprintf(tmp_text, "%s Discharging %li%%", dir->d_name, bat_capacity_l);
 			} else
 			if (bat_status == 'F') { // full
 				is_battery = 1;
-				if (!bat_icon)
-					bat_icon = "\uf578  ";
+#ifdef NERD_FONT_SUPPORT
+				if (!bat)
+					bat = "\uf578  ";
+#endif
 				sprintf(tmp_text, "%s Full %li%%", dir->d_name, bat_capacity_l);
 			} else continue;
 			char *tmp_2_text = malloc(32 * bat_count);
@@ -250,27 +270,37 @@ int main(int argc, char *argv[]) {
 			free(bat_text);
 			bat_text = tmp_2_text;
 		}
-		closedir(bat);
+		closedir(battery_dir);
 	}
+	char *key_text       = color("\x1b[38;5;14m"         , "");
+	char *separator_text = color("\x1b[38;5;7m ~ \x1b[0m", " ~ ");
+	char *slash_text     = color("\x1b[38;5;7m / \x1b[0m", " / ");
+	char *reset          = color("\x1b[0m"               , "");
 	// https://www.nerdfonts.com/
-	if (is_name)
-	printf("%s%s distro%s%s%s\n",       key_text, nerd_ternary(nerd_flag, "  "), separator_text, name, reset); // from reading /etc/os-release
-	printf("%s%s     os%s%s %s %s%s\n", key_text, nerd_ternary(nerd_flag, "  "), separator_text, un.sysname, un.machine, un.release, reset); // uname
-	printf("%s%s   user%s%s%s\n",       key_text, nerd_ternary(nerd_flag, "  "), separator_text, pw->pw_name, reset); // from getpwuid
-	printf("%s%s   host%s%s%s\n",       key_text, nerd_ternary(nerd_flag, "  "), separator_text, un.nodename, reset); // uname
-	printf("%s%s  shell%s%s%s\n",       key_text, nerd_ternary(nerd_flag, "  "), separator_text, sh_, reset); // SHELL env or from getpwuid
+	if (name)
+	printf("%s%s distro%s%s%s\n",       key_text, nerd("  "), separator_text, name, reset); // from reading /etc/os-release
+	printf("%s%s     os%s%s %s %s%s\n", key_text, nerd("  "), separator_text, un.sysname, un.machine, un.release, reset); // uname
+	printf("%s%s   user%s%s%s\n",       key_text, nerd("  "), separator_text, pw->pw_name, reset); // from getpwuid
+	printf("%s%s   host%s%s%s\n",       key_text, nerd("  "), separator_text, un.nodename, reset); // uname
+	printf("%s%s  shell%s%s%s\n",       key_text, nerd("  "), separator_text, sh_, reset); // SHELL env or from getpwuid
 	if (lang)
-	printf("%s%s locale%s%s%s\n",       key_text, nerd_ternary(nerd_flag, "  "), separator_text, lang, reset); // LANG env
-	printf("%s%s   date%s%s%s\n",       key_text, nerd_ternary(nerd_flag, "  "), separator_text, date_str, reset); // time/date format
-	printf("%s%s   time%s%s%s\n",       key_text, nerd_ternary(nerd_flag, "  "), separator_text, time_str, reset);
+	printf("%s%s locale%s%s%s\n",       key_text, nerd("  "), separator_text, lang, reset); // LANG env
+	printf("%s%s   date%s%s%s\n",       key_text, nerd("  "), separator_text, date_str, reset); // time/date format
+	printf("%s%s   time%s%s%s\n",       key_text, nerd("  "), separator_text, time_str, reset);
 	if (is_battery)
-	printf("%s%sbattery%s%s%s\n",       key_text, nerd_ternary(nerd_flag, bat_icon), separator_text, bat_text, reset);
-	printf("%s%s uptime%s%s%s\n",       key_text, nerd_ternary(nerd_flag, "﯁  "), separator_text, display_time(si.uptime), reset); // sysinfo
-	printf("%s%s   proc%s%i%s\n",       key_text, nerd_ternary(nerd_flag, "缾 "), separator_text, si.procs, reset);
-	printf("%s%s    ram%s%s%s%s%s\n",   key_text, nerd_ternary(nerd_flag, "  "), separator_text, display_bytes( si.totalram  - si.freeram),                  slash_text, display_bytes(si.totalram), reset);
+	printf("%s%sbattery%s%s%s\n",       key_text, nerd(bat),   separator_text, bat_text, reset);
+	printf("%s%s uptime%s%s%s\n",       key_text, nerd("﯁  "), separator_text, display_time(si.uptime), reset); // sysinfo
+	printf("%s%s   proc%s%i%s\n",       key_text, nerd("缾 "), separator_text, si.procs, reset);
+	printf("%s%s    ram%s%s%s%s%s\n",   key_text, nerd("  "), separator_text, display_bytes( si.totalram  - si.freeram),                  slash_text, display_bytes(si.totalram), reset);
 	if (si.totalswap > 0)
-	printf("%s%s   swap%s%s%s%s%s\n",   key_text, nerd_ternary(nerd_flag, "易 "), separator_text, display_bytes( si.totalswap - si.freeswap),                 slash_text, display_bytes(si.totalswap), reset);
-	printf("%s%s  inode%s%s%s%s%s\n",   key_text, nerd_ternary(nerd_flag, "﫭 "), separator_text, display_bytes( vfs.f_files  - vfs.f_ffree),                 slash_text, display_bytes(vfs.f_files), reset); // vfs
-	printf("%s%s  block%s%s%s%s%s\n",   key_text, nerd_ternary(nerd_flag, "﫭 "), separator_text, display_bytes((vfs.f_blocks - vfs.f_bfree) * vfs.f_frsize), slash_text, display_bytes(vfs.f_blocks * vfs.f_frsize), reset);
+	printf("%s%s   swap%s%s%s%s%s\n",   key_text, nerd("易 "), separator_text, display_bytes( si.totalswap - si.freeswap),                 slash_text, display_bytes(si.totalswap), reset);
+	printf("%s%s  inode%s%s%s%s%s\n",   key_text, nerd("﫭 "), separator_text, display_bytes( vfs.f_files  - vfs.f_ffree),                 slash_text, display_bytes(vfs.f_files), reset); // vfs
+	printf("%s%s  block%s%s%s%s%s\n",   key_text, nerd("﫭 "), separator_text, display_bytes((vfs.f_blocks - vfs.f_bfree) * vfs.f_frsize), slash_text, display_bytes(vfs.f_blocks * vfs.f_frsize), reset);
+	if (colorbars_flag) {
+		printf("\
+\x1b[48;5;0m   \x1b[48;5;1m   \x1b[48;5;2m   \x1b[48;5;3m   \x1b[48;5;4m   \x1b[48;5;5m   \x1b[48;5;6m   \x1b[48;5;7m   \x1b[0m\n\
+\x1b[48;5;8m   \x1b[48;5;9m   \x1b[48;5;10m   \x1b[48;5;11m   \x1b[48;5;12m   \x1b[48;5;13m   \x1b[48;5;14m   \x1b[48;5;15m   \x1b[0m\n\
+");
+	}
 	return 0;
 }
