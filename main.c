@@ -272,6 +272,7 @@ int main(int argc, char *argv[]) {
 		}
 		closedir(battery_dir);
 	}
+	char *tty = ttyname(STDIN_FILENO);
 	char *key_text       = color("\x1b[38;5;14m"         , "");
 	char *separator_text = color("\x1b[38;5;7m ~ \x1b[0m", " ~ ");
 	char *slash_text     = color("\x1b[38;5;7m / \x1b[0m", " / ");
@@ -285,6 +286,8 @@ int main(int argc, char *argv[]) {
 	printf("%s%s  shell%s%s%s\n",       key_text, nerd("  "), separator_text, sh_, reset); // SHELL env or from getpwuid
 	if (lang)
 	printf("%s%s locale%s%s%s\n",       key_text, nerd("  "), separator_text, lang, reset); // LANG env
+	if (tty)
+	printf("%s%s    tty%s%s%s\n",       key_text, nerd("  "), separator_text, tty, reset); // ttyname
 	printf("%s%s   date%s%s%s\n",       key_text, nerd("  "), separator_text, date_str, reset); // time/date format
 	printf("%s%s   time%s%s%s\n",       key_text, nerd("  "), separator_text, time_str, reset);
 	if (is_battery)
