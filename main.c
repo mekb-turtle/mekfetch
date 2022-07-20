@@ -19,6 +19,8 @@
 #define BATTERY "/sys/class/power_supply/"
 #define ROOT "/"
 #define BLOCK 512
+#define FG_BAR "███"
+#define BG_BAR "   "
 #define BYTES_PADDING 100 // 10 for 1 extra decimal digit
 #define BYTES_FORMAT "%.2f" // replace the number with how many zeros are in BYTES_PADDING
 char *display_bytes(unsigned long bytes) {
@@ -65,14 +67,15 @@ int usage(char *argv0) {
 	fprintf(stderr, "\
 Usage: %s\n"
 #ifdef COLOR_SUPPORT
-"	-c --color     : enables colors\n\
-	-b --colorbars : shows color bars, best used with -c\n"
+"	-c --color      : enables colors\n\
+	-b --colorbars  : shows color bars, best used with -c\n\
+	-f --foreground : use foreground colors for color bars\n"
 #endif
 #ifdef NERD_FONT_SUPPORT
-"	-n --nerd      : use nerd font icons\n"
+"	-n --nerd       : use nerd font icons\n"
 #endif
-"	-h --12hour    : use 12 hour time instead of 24 hour time\n\
-	-d --noday     : don't show day of the week in time (e.g Thu)\n",
+"	-h --12hour     : use 12 hour time instead of 24 hour time\n\
+	-d --noday      : don't show day of the week in time (e.g Thu)\n",
 	argv0);
 	return 2;
 }
@@ -91,6 +94,7 @@ int main(int argc, char *argv[]) {
 #ifdef COLOR_SUPPORT
 	bool color_flag = 0;
 	bool colorbars_flag = 0;
+	bool foreground_flag = 0;
 #endif
 #ifdef NERD_FONT_SUPPORT
 	bool nerd_flag = 0;
@@ -110,6 +114,10 @@ int main(int argc, char *argv[]) {
 				if (strcmp(argv[i], "-b") == 0 || strcmp(argv[i], "--colorbars") == 0) {
 					if (colorbars_flag) INVALID
 					colorbars_flag = 1;
+				} else
+				if (strcmp(argv[i], "-f") == 0 || strcmp(argv[i], "--foreground") == 0) {
+					if (foreground_flag) INVALID
+					foreground_flag = 1;
 				} else
 #endif
 #ifdef NERD_FONT_SUPPORT
@@ -300,10 +308,17 @@ int main(int argc, char *argv[]) {
 	printf("%s%s  inode%s%s%s%s%s\n",   key_text, nerd("﫭 "), separator_text, display_bytes( vfs.f_files  - vfs.f_ffree),                 slash_text, display_bytes(vfs.f_files), reset); // vfs
 	printf("%s%s  block%s%s%s%s%s\n",   key_text, nerd("﫭 "), separator_text, display_bytes((vfs.f_blocks - vfs.f_bfree) * vfs.f_frsize), slash_text, display_bytes(vfs.f_blocks * vfs.f_frsize), reset);
 	if (colorbars_flag) {
-		printf("\
-\x1b[48;5;0m   \x1b[48;5;1m   \x1b[48;5;2m   \x1b[48;5;3m   \x1b[48;5;4m   \x1b[48;5;5m   \x1b[48;5;6m   \x1b[48;5;7m   \x1b[0m\n\
-\x1b[48;5;8m   \x1b[48;5;9m   \x1b[48;5;10m   \x1b[48;5;11m   \x1b[48;5;12m   \x1b[48;5;13m   \x1b[48;5;14m   \x1b[48;5;15m   \x1b[0m\n\
+		if (foreground_flag) {
+			printf("\
+\x1b[38;5;0m"FG_BAR"\x1b[38;5;1m"FG_BAR"\x1b[38;5;2m"FG_BAR"\x1b[38;5;3m"FG_BAR"\x1b[38;5;4m"FG_BAR"\x1b[38;5;5m"FG_BAR"\x1b[38;5;6m"FG_BAR"\x1b[38;5;7m"FG_BAR"\x1b[0m\n\
+\x1b[38;5;8m"FG_BAR"\x1b[38;5;9m"FG_BAR"\x1b[38;5;10m"FG_BAR"\x1b[38;5;11m"FG_BAR"\x1b[38;5;12m"FG_BAR"\x1b[38;5;13m"FG_BAR"\x1b[38;5;14m"FG_BAR"\x1b[38;5;15m"FG_BAR"\x1b[0m\n\
 ");
+		} else {
+			printf("\
+\x1b[48;5;0m"BG_BAR"\x1b[48;5;1m"BG_BAR"\x1b[48;5;2m"BG_BAR"\x1b[48;5;3m"BG_BAR"\x1b[48;5;4m"BG_BAR"\x1b[48;5;5m"BG_BAR"\x1b[48;5;6m"BG_BAR"\x1b[48;5;7m"BG_BAR"\x1b[0m\n\
+\x1b[48;5;8m"BG_BAR"\x1b[48;5;9m"BG_BAR"\x1b[48;5;10m"BG_BAR"\x1b[48;5;11m"BG_BAR"\x1b[48;5;12m"BG_BAR"\x1b[48;5;13m"BG_BAR"\x1b[48;5;14m"BG_BAR"\x1b[48;5;15m"BG_BAR"\x1b[0m\n\
+");
+		}
 	}
 	return 0;
 }
