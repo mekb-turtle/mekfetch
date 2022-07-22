@@ -12,12 +12,12 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <dirent.h>
+#include <mntent.h>
 #define NERD_FONT_SUPPORT // comment out to compile without nerd font support, useful if you have a minimal system without fonts or a GUI
 #define COLOR_SUPPORT // same as above but for colors
 #define ERROR(format, str, ...) fprintf(stderr, format, str, strerror(errno), ##__VA_ARGS__)
 #define OS "/etc/os-release"
 #define BATTERY "/sys/class/power_supply/"
-#define ROOT "/"
 #define BLOCK 512
 #define FG_BAR "███"
 #define BG_BAR "   "
@@ -185,8 +185,6 @@ int main(int argc, char *argv[]) {
 			free(os[i]);
 		}
 	}
-	struct statvfs vfs;
-	if (statvfs(ROOT, &vfs) < 0) { ERROR("statvfs: %s: %s\n", ROOT); return errno; }
 	struct timeval timev;
 	gettimeofday(&timev, NULL);
 	struct tm *time = localtime(&(timev.tv_sec));
@@ -292,8 +290,20 @@ int main(int argc, char *argv[]) {
 	printf("%s%s    ram%s%s%s%s%s\n",   key_text, nerd("  "), separator_text, display_bytes( si.totalram  - si.freeram),                  slash_text, display_bytes(si.totalram), reset);
 	if (si.totalswap > 0)
 	printf("%s%s   swap%s%s%s%s%s\n",   key_text, nerd("易 "), separator_text, display_bytes( si.totalswap - si.freeswap),                 slash_text, display_bytes(si.totalswap), reset);
-	printf("%s%s  inode%s%s%s%s%s\n",   key_text, nerd("﫭 "), separator_text, display_bytes( vfs.f_files  - vfs.f_ffree),                 slash_text, display_bytes(vfs.f_files), reset); // vfs
-	printf("%s%s  block%s%s%s%s%s\n",   key_text, nerd("﫭 "), separator_text, display_bytes((vfs.f_blocks - vfs.f_bfree) * vfs.f_frsize), slash_text, display_bytes(vfs.f_blocks * vfs.f_frsize), reset);
+	FILE *f = setmntent("/proc/self/mounts", "r");
+	struct mntent *m;
+	while (m = getmntent(f)) {
+		if (m->mnt_fsname[0] != '/') continue; // check it's not a psuedo-fs like /dev, /proc, /tmp
+		if (m->mnt_dir[0]    != '/') continue;
+		struct statvfs vfs;
+		if (statvfs(m->mnt_dir, &vfs) < 0) { ERROR("statvfs: %s: %s\n", m->mnt_dir); } else {
+		printf("%s%s  mount%s%s%s\n",     key_text, nerd("﫭 "), separator_text, m->mnt_dir, reset);
+		if (vfs.f_files > 0)
+		printf("%s%s  inode%s%s%s%s%s\n", key_text, nerd("   "), separator_text, display_bytes( vfs.f_files  - vfs.f_ffree),                 slash_text, display_bytes(vfs.f_files), reset);
+		printf("%s%s  block%s%s%s%s%s\n", key_text, nerd("   "), separator_text, display_bytes((vfs.f_blocks - vfs.f_bfree) * vfs.f_frsize), slash_text, display_bytes(vfs.f_blocks * vfs.f_frsize), reset);
+		}
+	}
+	endmntent(f);
 	if (colorbars_flag) {
 		if (foreground_flag) {
 			printf("\
