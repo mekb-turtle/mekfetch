@@ -312,7 +312,7 @@ int main(int argc, char *argv[]) {
 			} else {
 				printf("\x1b[48;5;%im%s", j, BG_BAR);
 			}
-			if ((j & 7) == 7) printf("\n");
+			if ((j & 7) == 7) printf("\x1b[0m\n");
 		}
 	}
 	return 0;
