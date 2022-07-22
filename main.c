@@ -292,12 +292,13 @@ int main(int argc, char *argv[]) {
 	printf("%s%s   swap%s%s%s%s%s\n",   key_text, nerd("易 "), separator_text, display_bytes( si.totalswap - si.freeswap),                 slash_text, display_bytes(si.totalswap), reset);
 	FILE *f = setmntent("/proc/self/mounts", "r");
 	struct mntent *m;
-	while (m = getmntent(f)) {
+	while ((m = getmntent(f))) {
 		if (m->mnt_fsname[0] != '/') continue; // check it's not a psuedo-fs like /dev, /proc, /tmp
 		if (m->mnt_dir[0]    != '/') continue;
 		struct statvfs vfs;
 		if (statvfs(m->mnt_dir, &vfs) < 0) { ERROR("statvfs: %s: %s\n", m->mnt_dir); } else {
-		printf("%s%s  mount%s%s%s\n",     key_text, nerd("﫭 "), separator_text, m->mnt_dir, reset);
+		printf("%s%s  mount%s%s%s\n",     key_text, nerd("﫭 "), separator_text, m->mnt_dir,    reset);
+		printf("%s%s device%s%s%s\n",     key_text, nerd("   "), separator_text, m->mnt_fsname, reset);
 		if (vfs.f_files > 0)
 		printf("%s%s  inode%s%s%s%s%s\n", key_text, nerd("   "), separator_text, display_bytes( vfs.f_files  - vfs.f_ffree),                 slash_text, display_bytes(vfs.f_files), reset);
 		printf("%s%s  block%s%s%s%s%s\n", key_text, nerd("   "), separator_text, display_bytes((vfs.f_blocks - vfs.f_bfree) * vfs.f_frsize), slash_text, display_bytes(vfs.f_blocks * vfs.f_frsize), reset);
