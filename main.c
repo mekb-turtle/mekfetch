@@ -296,26 +296,23 @@ int main(int argc, char *argv[]) {
 		if (m->mnt_fsname[0] != '/') continue; // check it's not a psuedo-fs like /dev, /proc, /tmp
 		if (m->mnt_dir[0]    != '/') continue;
 		struct statvfs vfs;
-		if (statvfs(m->mnt_dir, &vfs) < 0) { ERROR("statvfs: %s: %s\n", m->mnt_dir); } else {
-		printf("%s%s  mount%s%s%s\n",     key_text, nerd("﫭 "), separator_text, m->mnt_dir,    reset);
-		printf("%s%s device%s%s%s\n",     key_text, nerd("   "), separator_text, m->mnt_fsname, reset);
-		if (vfs.f_files > 0)
-		printf("%s%s  inode%s%s%s%s%s\n", key_text, nerd("   "), separator_text, display_bytes( vfs.f_files  - vfs.f_ffree),                 slash_text, display_bytes(vfs.f_files), reset);
-		printf("%s%s  block%s%s%s%s%s\n", key_text, nerd("   "), separator_text, display_bytes((vfs.f_blocks - vfs.f_bfree) * vfs.f_frsize), slash_text, display_bytes(vfs.f_blocks * vfs.f_frsize), reset);
+		if (statvfs(m->mnt_dir, &vfs) < 0) { ERROR("statvfs: %s: %s\n", m->mnt_dir); } else if (vfs.f_blocks > 0) {
+			printf("%s%s  mount%s%s%s\n",     key_text, nerd("﫭 "), separator_text, m->mnt_dir,    reset);
+			printf("%s%s device%s%s%s\n",     key_text, nerd("   "), separator_text, m->mnt_fsname, reset);
+			if (vfs.f_files > 0)
+			printf("%s%s  inode%s%s%s%s%s\n", key_text, nerd("   "), separator_text, display_bytes( vfs.f_files  - vfs.f_ffree),                 slash_text, display_bytes(vfs.f_files), reset);
+			printf("%s%s  block%s%s%s%s%s\n", key_text, nerd("   "), separator_text, display_bytes((vfs.f_blocks - vfs.f_bfree) * vfs.f_frsize), slash_text, display_bytes(vfs.f_blocks * vfs.f_frsize), reset);
 		}
 	}
 	endmntent(f);
 	if (colorbars_flag) {
-		if (foreground_flag) {
-			printf("\
-\x1b[38;5;0m"FG_BAR"\x1b[38;5;1m"FG_BAR"\x1b[38;5;2m"FG_BAR"\x1b[38;5;3m"FG_BAR"\x1b[38;5;4m"FG_BAR"\x1b[38;5;5m"FG_BAR"\x1b[38;5;6m"FG_BAR"\x1b[38;5;7m"FG_BAR"\x1b[0m\n\
-\x1b[38;5;8m"FG_BAR"\x1b[38;5;9m"FG_BAR"\x1b[38;5;10m"FG_BAR"\x1b[38;5;11m"FG_BAR"\x1b[38;5;12m"FG_BAR"\x1b[38;5;13m"FG_BAR"\x1b[38;5;14m"FG_BAR"\x1b[38;5;15m"FG_BAR"\x1b[0m\n\
-");
-		} else {
-			printf("\
-\x1b[48;5;0m"BG_BAR"\x1b[48;5;1m"BG_BAR"\x1b[48;5;2m"BG_BAR"\x1b[48;5;3m"BG_BAR"\x1b[48;5;4m"BG_BAR"\x1b[48;5;5m"BG_BAR"\x1b[48;5;6m"BG_BAR"\x1b[48;5;7m"BG_BAR"\x1b[0m\n\
-\x1b[48;5;8m"BG_BAR"\x1b[48;5;9m"BG_BAR"\x1b[48;5;10m"BG_BAR"\x1b[48;5;11m"BG_BAR"\x1b[48;5;12m"BG_BAR"\x1b[48;5;13m"BG_BAR"\x1b[48;5;14m"BG_BAR"\x1b[48;5;15m"BG_BAR"\x1b[0m\n\
-");
+		for (char j = 0; j < 16; ++j) {
+			if (foreground_flag) {
+				printf("\x1b[38;5;%im%s", j, FG_BAR);
+			} else {
+				printf("\x1b[48;5;%im%s", j, BG_BAR);
+			}
+			if ((j & 7) == 7) printf("\n");
 		}
 	}
 	return 0;
