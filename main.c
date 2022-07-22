@@ -202,84 +202,6 @@ int main(int argc, char *argv[]) {
 		}
 	}
 	DIR *battery_dir = opendir(BATTERY); // lists all batteries
-	bool is_battery = 0;
-#ifdef NERD_FONT_SUPPORT
-	char *bat = NULL;
-#endif
-	char *bat_text = NULL;
-	if (battery_dir) {
-		size_t bat_count = 0;
-		struct dirent *dir = NULL;
-		while ((dir = readdir(battery_dir)) != NULL) {
-			if (dir->d_name[0] == '.' && (dir->d_name[1] == '\0' || (dir->d_name[1] == '.' && dir->d_name[2] == '\0'))) continue; // ignore . and ..
-			char *bat_status_name   = malloc(32 + strlen(dir->d_name));
-			char *bat_capacity_name = malloc(32 + strlen(dir->d_name));
-			sprintf(bat_status_name,   "%s/%s/status",   BATTERY, dir->d_name);
-			sprintf(bat_capacity_name, "%s/%s/capacity", BATTERY, dir->d_name);
-			FILE *bat_status_f   = fopen(bat_status_name,    "r");
-			if (!bat_status_f)   continue;
-			FILE *bat_capacity_f = fopen(bat_capacity_name, "r");
-			if (!bat_capacity_f) continue;
-			char* bat_capacity = malloc(BLOCK);
-			int   bat_status   = fgetc(bat_status_f);
-			size_t bat_capacity_read = fread(bat_capacity, 1, BLOCK, bat_capacity_f);
-			if (bat_status == EOF || bat_capacity_read >= BLOCK || bat_capacity_read <= 0) continue;
-			if (ferror(bat_status_f) || ferror(bat_capacity_f)) continue;
-			if (feof(  bat_status_f) || !feof( bat_capacity_f)) continue;
-			for (size_t i = 0; i < 16; ++i) { if (bat_capacity[i] < '0' || bat_capacity[i] > '9') bat_capacity[i] = '\0'; } // ignore everything after numbers
-			long bat_capacity_l = atol(bat_capacity); // convert to integer
-			bat_text = realloc(bat_text, 32 * (++bat_count));
-			if (bat_count == 1) bat_text[0] = '\0';
-			char *tmp_text = malloc(32);
-			if (bat_status == 'C') { // charging
-				is_battery = 1;
-#ifdef NERD_FONT_SUPPORT
-				if (!bat) {
-					if (bat_capacity_l < 30)  bat = "\uf585  "; else
-					if (bat_capacity_l < 40)  bat = "\uf586  "; else
-					if (bat_capacity_l < 50)  bat = "\uf587  "; else
-					if (bat_capacity_l < 70)  bat = "\uf588  "; else
-					if (bat_capacity_l < 90)  bat = "\uf589  "; else
-					if (bat_capacity_l < 100) bat = "\uf58a  "; else
-					bat = "\uf584  ";
-				}
-#endif
-				sprintf(tmp_text, "%s Charging %li%%", dir->d_name, bat_capacity_l);
-			} else
-			if (bat_status == 'D') { // discharging
-				is_battery = 1;
-#ifdef NERD_FONT_SUPPORT
-				if (!bat) {
-					if (bat_capacity_l < 10)  bat = "\uf58d  "; else
-					if (bat_capacity_l < 20)  bat = "\uf579  "; else
-					if (bat_capacity_l < 30)  bat = "\uf57a  "; else
-					if (bat_capacity_l < 40)  bat = "\uf57b  "; else
-					if (bat_capacity_l < 50)  bat = "\uf57c  "; else
-					if (bat_capacity_l < 60)  bat = "\uf57d  "; else
-					if (bat_capacity_l < 70)  bat = "\uf57e  "; else
-					if (bat_capacity_l < 80)  bat = "\uf57f  "; else
-					if (bat_capacity_l < 90)  bat = "\uf580  "; else
-					if (bat_capacity_l < 100) bat = "\uf581  "; else
-					bat = "\uf578  ";
-				}
-#endif
-				sprintf(tmp_text, "%s Discharging %li%%", dir->d_name, bat_capacity_l);
-			} else
-			if (bat_status == 'F') { // full
-				is_battery = 1;
-#ifdef NERD_FONT_SUPPORT
-				if (!bat)
-					bat = "\uf578  ";
-#endif
-				sprintf(tmp_text, "%s Full %li%%", dir->d_name, bat_capacity_l);
-			} else continue;
-			char *tmp_2_text = malloc(32 * bat_count);
-			sprintf(tmp_2_text, "%s%s%s", bat_text, bat_count > 1 ? ", " : "", tmp_text);
-			free(bat_text);
-			bat_text = tmp_2_text;
-		}
-		closedir(battery_dir);
-	}
 	char *tty = ttyname(STDIN_FILENO);
 	char *key_text       = color("\x1b[38;5;14m"         , "");
 	char *separator_text = color("\x1b[38;5;7m ~ \x1b[0m", " ~ ");
@@ -298,8 +220,73 @@ int main(int argc, char *argv[]) {
 	printf("%s%s    tty%s%s%s\n",       key_text, nerd("  "), separator_text, tty, reset); // ttyname
 	printf("%s%s   date%s%s%s\n",       key_text, nerd("  "), separator_text, date_str, reset); // time/date format
 	printf("%s%s   time%s%s%s\n",       key_text, nerd("  "), separator_text, time_str, reset);
-	if (is_battery)
+	if (battery_dir) {
+		size_t bat_count = 0;
+		struct dirent *dir = NULL;
+		while ((dir = readdir(battery_dir)) != NULL) {
+#ifdef NERD_FONT_SUPPORT
+			char *bat = NULL;
+#endif
+			if (dir->d_name[0] == '.' && (dir->d_name[1] == '\0' || (dir->d_name[1] == '.' && dir->d_name[2] == '\0'))) continue; // ignore . and ..
+			char *bat_status_name   = malloc(16 + strlen(BATTERY) + strlen(dir->d_name));
+			char *bat_capacity_name = malloc(16 + strlen(BATTERY) + strlen(dir->d_name));
+			sprintf(bat_status_name,   "%s/%s/status",   BATTERY, dir->d_name);
+			sprintf(bat_capacity_name, "%s/%s/capacity", BATTERY, dir->d_name);
+			FILE *bat_status_f   = fopen(bat_status_name,   "r");
+			if (!bat_status_f)   continue;
+			FILE *bat_capacity_f = fopen(bat_capacity_name, "r");
+			if (!bat_capacity_f) continue;
+			free(bat_status_name);
+			free(bat_capacity_name);
+			char* bat_capacity = malloc(BLOCK);
+			int   bat_status   = fgetc(bat_status_f);
+			size_t bat_capacity_read = fread(bat_capacity, 1, BLOCK, bat_capacity_f);
+			if (bat_status == EOF || bat_capacity_read >= BLOCK || bat_capacity_read <= 0) continue;
+			if (ferror(bat_status_f) || ferror(bat_capacity_f)) continue;
+			if (feof(  bat_status_f) || !feof( bat_capacity_f)) continue;
+			for (size_t i = 0; i < 16; ++i) { if (bat_capacity[i] < '0' || bat_capacity[i] > '9') bat_capacity[i] = '\0'; } // ignore everything after numbers
+			long bat_capacity_l = atol(bat_capacity); // convert to integer
+			free(bat_capacity);
+			char *bat_text = malloc(32 * (++bat_count));
+			if (bat_status == 'C') { // charging
+#ifdef NERD_FONT_SUPPORT
+				if (bat_capacity_l < 30)  bat = "\uf585  "; else
+				if (bat_capacity_l < 40)  bat = "\uf586  "; else
+				if (bat_capacity_l < 50)  bat = "\uf587  "; else
+				if (bat_capacity_l < 70)  bat = "\uf588  "; else
+				if (bat_capacity_l < 90)  bat = "\uf589  "; else
+				if (bat_capacity_l < 100) bat = "\uf58a  "; else
+				bat = "\uf584  ";
+#endif
+				sprintf(bat_text, "%s Charging %li%%", dir->d_name, bat_capacity_l);
+			} else
+			if (bat_status == 'D') { // discharging
+#ifdef NERD_FONT_SUPPORT
+				if (bat_capacity_l < 10)  bat = "\uf58d  "; else
+				if (bat_capacity_l < 20)  bat = "\uf579  "; else
+				if (bat_capacity_l < 30)  bat = "\uf57a  "; else
+				if (bat_capacity_l < 40)  bat = "\uf57b  "; else
+				if (bat_capacity_l < 50)  bat = "\uf57c  "; else
+				if (bat_capacity_l < 60)  bat = "\uf57d  "; else
+				if (bat_capacity_l < 70)  bat = "\uf57e  "; else
+				if (bat_capacity_l < 80)  bat = "\uf57f  "; else
+				if (bat_capacity_l < 90)  bat = "\uf580  "; else
+				if (bat_capacity_l < 100) bat = "\uf581  "; else
+				bat = "\uf578  ";
+#endif
+				sprintf(bat_text, "%s Discharging %li%%", dir->d_name, bat_capacity_l);
+			} else
+			if (bat_status == 'F') { // full
+#ifdef NERD_FONT_SUPPORT
+				bat = "\uf578  ";
+#endif
+				sprintf(bat_text, "%s Full %li%%", dir->d_name, bat_capacity_l);
+			} else continue;
 	printf("%s%sbattery%s%s%s\n",       key_text, nerd(bat),   separator_text, bat_text, reset);
+			free(bat_text);
+		}
+		closedir(battery_dir);
+	}
 	printf("%s%s uptime%s%s%s\n",       key_text, nerd("﯁  "), separator_text, display_time(si.uptime), reset); // sysinfo
 	printf("%s%s   proc%s%i%s\n",       key_text, nerd("缾 "), separator_text, si.procs, reset);
 	printf("%s%s    ram%s%s%s%s%s\n",   key_text, nerd("  "), separator_text, display_bytes( si.totalram  - si.freeram),                  slash_text, display_bytes(si.totalram), reset);
