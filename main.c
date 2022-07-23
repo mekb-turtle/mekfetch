@@ -67,15 +67,16 @@ int usage(char *argv0) {
 	fprintf(stderr, "\
 Usage: %s\n"
 #ifdef COLOR_SUPPORT
-"	-c --color      : enables colors\n\
-	-b --colorbars  : shows color bars, best used with -c\n\
-	-f --foreground : use foreground colors for color bars\n"
+"	-c --color       : enables colors\n\
+	-b --colorbars   : shows color bars, best used with -c\n\
+	-f --foreground  : use foreground colors for color bars\n"
 #endif
 #ifdef NERD_FONT_SUPPORT
-"	-n --nerd       : use nerd font icons\n"
+"	-n --nerd        : use nerd font icons\n"
 #endif
-"	-h --12hour     : use 12 hour time instead of 24 hour time\n\
-	-d --noday      : don't show day of the week in time (e.g Thu)\n",
+"	-h --12hour      : use 12 hour time instead of 24 hour time\n\
+	-d --noday       : don't show day of the week in time (e.g Thu)\n\
+	-o --filesystems : show all mounted file systems instead of just root\n",
 	argv0);
 	return 2;
 }
@@ -101,6 +102,7 @@ int main(int argc, char *argv[]) {
 #endif
 	bool h12_flag = 0;
 	bool noday_flag = 0;
+	bool filesystems_flag = 0;
 	bool flag_done = 0;
 	for (int i = 1; i < argc; ++i) {
 		if (argv[i][0] == '-' && argv[i][1] != '\0' && !flag_done) {
@@ -133,6 +135,10 @@ int main(int argc, char *argv[]) {
 				if (strcmp(argv[i], "-d") == 0 || strcmp(argv[i], "--noday") == 0) {
 					if (noday_flag) INVALID
 					noday_flag = 1;
+				} else
+				if (strcmp(argv[i], "-o") == 0 || strcmp(argv[i], "--filesystems") == 0) {
+					if (filesystems_flag) INVALID
+					filesystems_flag = 1;
 				} else
 				INVALID
 			}
@@ -295,13 +301,20 @@ int main(int argc, char *argv[]) {
 	while ((m = getmntent(f))) {
 		if (m->mnt_fsname[0] != '/') continue; // check it's not a psuedo-fs like /dev, /proc, /tmp
 		if (m->mnt_dir[0]    != '/') continue;
+		if (m->mnt_dir[1]    != '\0' && !filesystems_flag) continue;
 		struct statvfs vfs;
 		if (statvfs(m->mnt_dir, &vfs) < 0) { ERROR("statvfs: %s: %s\n", m->mnt_dir); } else if (vfs.f_blocks > 0) {
+			if (filesystems_flag) {
 			printf("%s%s  mount%s%s%s\n",     key_text, nerd("﫭 "), separator_text, m->mnt_dir,    reset);
 			printf("%s%s device%s%s%s\n",     key_text, nerd("   "), separator_text, m->mnt_fsname, reset);
+			} else {
+			printf("%s%s   root%s%s%s\n",     key_text, nerd("﫭 "), separator_text, m->mnt_fsname, reset);
+			}
 			if (vfs.f_files > 0)
-			printf("%s%s  inode%s%s%s%s%s\n", key_text, nerd("   "), separator_text, display_bytes( vfs.f_files  - vfs.f_ffree),                 slash_text, display_bytes(vfs.f_files), reset);
-			printf("%s%s  block%s%s%s%s%s\n", key_text, nerd("   "), separator_text, display_bytes((vfs.f_blocks - vfs.f_bfree) * vfs.f_frsize), slash_text, display_bytes(vfs.f_blocks * vfs.f_frsize), reset);
+			printf("%s%s  inode%s%s%s%s%s\n", key_text, nerd("   "), separator_text, display_bytes( vfs.f_files  - vfs.f_ffree),
+				slash_text, display_bytes(vfs.f_files), reset);
+			printf("%s%s  block%s%s%s%s%s\n", key_text, nerd("   "), separator_text, display_bytes((vfs.f_blocks - vfs.f_bfree) * vfs.f_frsize),
+				slash_text, display_bytes(vfs.f_blocks * vfs.f_frsize), reset);
 		}
 	}
 	endmntent(f);
