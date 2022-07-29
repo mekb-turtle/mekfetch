@@ -3,7 +3,9 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/utsname.h>
+#ifndef __APPLE__
 #include <sys/sysinfo.h>
+#endif
 #include <sys/time.h>
 #include <sys/statvfs.h>
 #include <time.h>
@@ -291,11 +293,13 @@ int main(int argc, char *argv[]) {
 		}
 		closedir(battery_dir);
 	}
+#ifndef __APPLE__
 	printf("%s%s uptime%s%s%s\n",       key_text, nerd("﯁  "), separator_text, display_time(si.uptime), reset); // sysinfo
 	printf("%s%s   proc%s%i%s\n",       key_text, nerd("缾 "), separator_text, si.procs, reset);
 	printf("%s%s    ram%s%s%s%s%s\n",   key_text, nerd("  "), separator_text, display_bytes( si.totalram  - si.freeram),                  slash_text, display_bytes(si.totalram), reset);
 	if (si.totalswap > 0)
 	printf("%s%s   swap%s%s%s%s%s\n",   key_text, nerd("易 "), separator_text, display_bytes( si.totalswap - si.freeswap),                 slash_text, display_bytes(si.totalswap), reset);
+#endif
 	FILE *f = setmntent("/proc/self/mounts", "r");
 	struct mntent *m;
 	while ((m = getmntent(f))) {
