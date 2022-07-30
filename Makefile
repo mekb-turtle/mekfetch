@@ -4,7 +4,7 @@ LFLAGS=-lm -s
 
 OBJS=main.o
 
-TARGET=fetch
+TARGET=mekfetch
 
 .PHONY: all clean
 
