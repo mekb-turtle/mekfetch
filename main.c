@@ -17,7 +17,8 @@
 #include <mntent.h>
 #define NERD_FONT_SUPPORT // comment out to compile without nerd font support, useful if you have a minimal system without fonts or a GUI
 #define COLOR_SUPPORT // same as above but for colors
-#define ERROR(format, str, ...) fprintf(stderr, format, str, strerror(errno), ##__VA_ARGS__)
+#define eprintf(...) fprintf(stderr, __VA_ARGS__)
+#define strerr strerror(errno)
 #define OS "/etc/os-release"
 #define BATTERY "/sys/class/power_supply/"
 #define BLOCK 512
@@ -66,7 +67,7 @@ char *display_time(long seconds) {
 	return string;
 }
 int usage(char *argv0) {
-	fprintf(stderr, "\
+	eprintf("\
 Usage: %s\n"
 #ifdef COLOR_SUPPORT
 "	-c --color       : enables colors\n\
@@ -148,7 +149,7 @@ int main(int argc, char *argv[]) {
 	}
 	uid_t uid = getuid();
 	struct passwd *pw = getpwuid(uid); // reads /etc/passwd field of current UID
-	if (!pw) { ERROR("getpwuid: %i: %s\n", uid); return errno; }
+	if (!pw) { eprintf("getpwuid: %i: %s\n", uid, strerr); return errno; }
 	struct utsname un;
 	uname(&un);
 	struct sysinfo si;
@@ -160,7 +161,7 @@ int main(int argc, char *argv[]) {
 	if (!sh_) sh_ = sh; else ++sh_;
 	char *name;
 	FILE *fp = fopen(OS, "r");
-	if (!fp) { ERROR("%s: %s\n", OS); }
+	if (!fp) { eprintf("%s: %s\n", OS, strerr); }
 	else {
 		char **os = NULL;
 		size_t oslen = 0;
@@ -307,7 +308,7 @@ int main(int argc, char *argv[]) {
 		if (m->mnt_dir[0]    != '/') continue;
 		if (m->mnt_dir[1]    != '\0' && !filesystems_flag) continue;
 		struct statvfs vfs;
-		if (statvfs(m->mnt_dir, &vfs) < 0) { ERROR("statvfs: %s: %s\n", m->mnt_dir); } else if (vfs.f_blocks > 0) {
+		if (statvfs(m->mnt_dir, &vfs) < 0) { eprintf("statvfs: %s: %s\n", m->mnt_dir, strerr); } else if (vfs.f_blocks > 0) {
 			if (filesystems_flag) {
 			printf("%s%s  mount%s%s%s\n",     key_text, nerd("﫭 "), separator_text, m->mnt_dir,    reset);
 			printf("%s%s device%s%s%s\n",     key_text, nerd("   "), separator_text, m->mnt_fsname, reset);
