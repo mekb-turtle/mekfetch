@@ -22,6 +22,7 @@
 #define OS "/etc/os-release"
 #define BATTERY "/sys/class/power_supply/"
 #define BLOCK 512
+#define SQ_BAR "󱓻 "
 #define FG_BAR "███"
 #define BG_BAR "   "
 #define BYTES_PADDING 100 // 10 for 1 extra decimal digit
@@ -75,7 +76,8 @@ Usage: %s\n"
 	-f --foreground  : use foreground colors for color bars\n"
 #endif
 #ifdef NERD_FONT_SUPPORT
-"	-n --nerd        : use nerd font icons\n"
+"	-C --square      : use rounded square symbols for color bars\n\
+	-n --nerd        : use nerd font icons\n"
 #endif
 "	-h --12hour      : use 12 hour time instead of 24 hour time\n\
 	-d --noday       : don't show day of the week in time (e.g Thu)\n\
@@ -101,6 +103,7 @@ int main(int argc, char *argv[]) {
 	bool foreground_flag = 0;
 #endif
 #ifdef NERD_FONT_SUPPORT
+	bool square_flag = 0;
 	bool nerd_flag = 0;
 #endif
 	bool h12_flag = 0;
@@ -126,6 +129,10 @@ int main(int argc, char *argv[]) {
 				} else
 #endif
 #ifdef NERD_FONT_SUPPORT
+				if (strcmp(argv[i], "-C") == 0 || strcmp(argv[i], "--square") == 0) {
+					if (square_flag) INVALID
+					square_flag = 1;
+				} else
 				if (strcmp(argv[i], "-n") == 0 || strcmp(argv[i], "--nerd") == 0) {
 					if (nerd_flag) INVALID
 					nerd_flag = 1;
@@ -226,7 +233,7 @@ int main(int argc, char *argv[]) {
 	if (tty)
 	printf("%s%s    tty%s%s%s\n",       key_text, nerd("  "), separator_text, tty, reset); // ttyname
 	printf("%s%s   date%s%s%s\n",       key_text, nerd("  "), separator_text, date_str, reset); // time/date format
-	printf("%s%s   time%s%s%s\n",       key_text, nerd("  "), separator_text, time_str, reset);
+	printf("%s%s   time%s%s%s\n",       key_text, nerd("  "), separator_text, time_str, reset);
 	if (battery_dir) {
 		size_t bat_count = 0;
 		struct dirent *dir = NULL;
@@ -295,11 +302,11 @@ int main(int argc, char *argv[]) {
 		closedir(battery_dir);
 	}
 #ifndef __APPLE__
-	printf("%s%s uptime%s%s%s\n",       key_text, nerd("﯁  "), separator_text, display_time(si.uptime), reset); // sysinfo
-	printf("%s%s   proc%s%i%s\n",       key_text, nerd("缾 "), separator_text, si.procs, reset);
-	printf("%s%s    ram%s%s%s%s%s\n",   key_text, nerd("  "), separator_text, display_bytes( si.totalram  - si.freeram),                  slash_text, display_bytes(si.totalram), reset);
+	printf("%s%s uptime%s%s%s\n",       key_text, nerd("  "), separator_text, display_time(si.uptime), reset); // sysinfo
+	printf("%s%s   proc%s%i%s\n",       key_text, nerd("  "), separator_text, si.procs, reset);
+	printf("%s%s    ram%s%s%s%s%s\n",   key_text, nerd("󰍛  "), separator_text, display_bytes( si.totalram  - si.freeram),                  slash_text, display_bytes(si.totalram), reset);
 	if (si.totalswap > 0)
-	printf("%s%s   swap%s%s%s%s%s\n",   key_text, nerd("易 "), separator_text, display_bytes( si.totalswap - si.freeswap),                 slash_text, display_bytes(si.totalswap), reset);
+	printf("%s%s   swap%s%s%s%s%s\n",   key_text, nerd("󰾵  "), separator_text, display_bytes( si.totalswap - si.freeswap),                 slash_text, display_bytes(si.totalswap), reset);
 #endif
 	FILE *f = setmntent("/proc/self/mounts", "r");
 	struct mntent *m;
@@ -310,10 +317,10 @@ int main(int argc, char *argv[]) {
 		struct statvfs vfs;
 		if (statvfs(m->mnt_dir, &vfs) < 0) { eprintf("statvfs: %s: %s\n", m->mnt_dir, strerr); } else if (vfs.f_blocks > 0) {
 			if (filesystems_flag) {
-			printf("%s%s  mount%s%s%s\n",     key_text, nerd("﫭 "), separator_text, m->mnt_dir,    reset);
-			printf("%s%s device%s%s%s\n",     key_text, nerd("   "), separator_text, m->mnt_fsname, reset);
+			printf("%s%s  mount%s%s%s\n",     key_text, nerd("󰉋  "), separator_text, m->mnt_dir,    reset);
+			printf("%s%s device%s%s%s\n",     key_text, nerd("󰋊  "), separator_text, m->mnt_fsname, reset);
 			} else {
-			printf("%s%s   root%s%s%s\n",     key_text, nerd("﫭 "), separator_text, m->mnt_fsname, reset);
+			printf("%s%s   root%s%s%s\n",     key_text, nerd("󰋊  "), separator_text, m->mnt_fsname, reset);
 			}
 			if (vfs.f_files > 0)
 			printf("%s%s  inode%s%s%s%s%s\n", key_text, nerd("   "), separator_text, display_bytes( vfs.f_files  - vfs.f_ffree),
@@ -325,6 +332,11 @@ int main(int argc, char *argv[]) {
 	endmntent(f);
 	if (colorbars_flag) {
 		for (char j = 0; j < 16; ++j) {
+#ifdef NERD_FONT_SUPPORT
+			if (square_flag) {
+				printf("\x1b[38;5;%im%s", j, SQ_BAR);
+			} else
+#endif
 			if (foreground_flag) {
 				printf("\x1b[38;5;%im%s", j, FG_BAR);
 			} else {
